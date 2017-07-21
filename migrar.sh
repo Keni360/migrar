@@ -4,11 +4,48 @@
 # Sistema: Realiza migração de sites  #
 #######################################
 
+# Dividido de acordo com o seguinte checklist
+# 1 - Receber dados necessários para acessos e alterações
+#     - nome do site;
+#     - servidor de destino; 
+#     - pasta destino, 
+#     - tamanho da estrutura; 
+#     - nome do banco; 
+#     - usuario do banco;
+#     - senha do banco.
+#
+# 2 - Criar estrutura no servidor de destino do site a ser migrado  
+#     - ( script de criação : /root/bin/cria_dominio_bd.sh )
+#   
+# 3 - Sincronizar os arquivos no servidor de origem para o servidor de destino 
+#     * Usar rsync -hrazv /home/wvirt/<site>/
+#     	* <site>/public_html/ p/ /home/wvirt/<site>/public_html
+#       * <site>/logs/*      p/ /home/wvirt/<site>/var/log    (log sem 's')
+#       * <site>/stats/*     p/ /home/wvirt/<site>/var/stats 
+#       * <site>/data/*      p/ /home/wvirt/<site>/var/data
+#
+# 4 - Mudar as permissões da pasta public_html para o grupo com o nome do dominio 
+#     - ex.: chown -R <site.com.br>:<site.com.br> public_html 
+#
+# 5 - Na pasta /home/wvirt/<site>/var/log/ 
+#     - Apagar o arquivo acess_log
+#	 * Ex.: rm /home/wvirt/<site>/var/log/access_log
+#     - Criar outro link (ln -s) de acess_log com o mês atual 
+#        * Ex.: no mês de julho: ln -s /home/wvirt/<site>/var/log/access.2017.07.log acces_log
+# 
+# 6 - Exportar o Banco de dados
+#     - Importar  do servidor de origem 
+#     - Importar para o servidor de destino
+# 
+#
+
+
 clear
 # Variaveis padrão
 USER='root'
 SERVER='192.168.0.100'
 DESTDIR='/home/wvirt'
+ORIDIR='/home/wvirt'
 HASDB="false"
 DBNAME=''
 DBUSER=''
@@ -18,13 +55,18 @@ SITE=''
 
 #*******************************************************
 #						       *
-# Funções do sistema				       *
+#              FUNÇÕES DO SCRIPT		       *
 #						       *
 #*******************************************************
 
 
-# Exibe o valor atual dos parâmetros na tela
-
+#----------------------------------------------
+#  Exibe o valor atual dos parâmetros na tela |
+#---------------------------------------------|
+# É invocada nas funções | show_param         |
+# --------------------------------------------|
+# Invoca as funções      |	              |
+# ---------------------------------------------
 show_param () {
 	echo "função funcionando"
 	
@@ -36,7 +78,7 @@ show_param () {
 		echo "1 - Servidor de destino  : $SERVER"
 		echo "2 - Diretorio de destino : $DESTDIR"
 		echo "3 - Site atual           : $SITE"
-		echo "4 - Nome do banco        : $BDNAME"
+		echo "4 - Nome do banco        : $DBNAME"
 		echo "5 - Usuário do banco     : $DBUSER"
 		echo "6 - Senha do banco       : $DBPASS"
 	else
@@ -49,26 +91,29 @@ show_param () {
 	fi
 }
 
-# Altera os parâmetros
 
+
+#----------------------------------------------
+#    Altera os valores atuais dos parametros  |
+#---------------------------------------------|
+# É invocada nas funções |                    |
+# --------------------------------------------|
+# Invoca as funções      | show_param         |
+# ---------------------------------------------
 change_param () {
 
 	# Loop controlado por sentinela enquanto a resposta for s (sim)	
 	while test "$RESP" = "s"
 	do
-		clear
-		echo "Digite o número do parametro que deseja alterar"
 
-		echo "Esses são os parâmetros atuais:"
-		echo "1 - Servidor de destino  : $SERVER"
-		echo "2 - Diretorio de destino : $DESTDIR"
-		echo "3 - Site atual           : $SITE"
-		echo "4 - Nome do banco        : $BDNAME"
-		echo "5 - Usuário do banco     : $DBUSER"
-		echo "6 - Senha do banco       : $DBPASS"
+		# Chama função para exibir valor dos parametros atuais
+		show_param
 		echo ""
+
+		echo "Digite o número do parametro que deseja alterar"
 		read PARAM
-	
+		clear
+			
 		# Testa o parâmetro que deseja alterar
 		case $PARAM in
 
@@ -79,11 +124,11 @@ change_param () {
 			3) echo "Insira o site que deseja migrar:"
 			read SITE;;
 			4) echo "Insira o nome do banco:"
-			read BDNAME;;
+			read DBNAME;;
 			5) echo "Insira o nome do usuário do banco:"
-			read USERDB;;
+			read DBUSER;;
 			6) echo "Insira a senha do banco:"
-			read PASSDB;;
+			read DBPASS;;
 			*) echo "Opção invalida"
 			sleep 2;;
 		esac
@@ -106,7 +151,6 @@ change_param () {
 
 # Inicio do programa
 
-
 echo "Qual o site que deseja migrar?"
 read SITE
 
@@ -115,6 +159,7 @@ read RESPDB
 
 
 # Caso possua banco $HASDB recebe true
+
 if test "$RESPDB" != "n" 
 	then
 		HASDB="true"
