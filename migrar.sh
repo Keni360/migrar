@@ -63,7 +63,7 @@ SITE=''
 #----------------------------------------------
 #  Exibe o valor atual dos parâmetros na tela |
 #---------------------------------------------|
-# É invocada nas funções | show_param         |
+# É invocada nas funções | change_param       |
 # --------------------------------------------|
 # Invoca as funções      |	              |
 # ---------------------------------------------
