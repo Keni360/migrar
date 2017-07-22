@@ -41,9 +41,9 @@
 
 
 clear
-# Variaveis padrão
+# Variaveis padrão - Globais
 USER='root'
-SERVER='192.168.0.100'
+SERVER='192.168.25.100'
 DESTDIR='/home/wvirt'
 ORIDIR='/home/wvirt'
 HASDB="false"
@@ -61,13 +61,58 @@ SITE=''
 
 
 #----------------------------------------------
-#  Exibe o valor atual dos parâmetros na tela |
+#  		func_make_quest               |
+#                                             |
+# Cria um loop com uma pergunta desejada e    |		      
+# Recebe três parametros onde:                |
+# 1º - pergunta desejada                      |
+# 2º - Ação a ser executada caso seja S       |
+# 3º - Ação a ser executada caso seja N       |
+# Cria uma pergunta que recebe 's' ou 'n'[s/n]|
+#  					      |
 #---------------------------------------------|
-# É invocada nas funções | change_param       |
+# É invocada nas funções | 		      |
 # --------------------------------------------|
 # Invoca as funções      |	              |
 # ---------------------------------------------
-show_param () {
+# ex.: func_make_quest "Deseja execultar ifconfig?" ifconfig exit
+
+
+func_make_quest (){
+	local QUEST=$1
+	local RESP
+	
+	echo "$QUEST[s/n]"
+	read RESP
+	
+	case "$RESP" in
+		"S") echo "S"
+		     $2;;
+		"s") echo "s"
+		     $2;;
+		"n") echo "n"
+		     $3;;
+		"N") echo "N"
+		     $4;;
+		*) echo "Opção inválida"
+		   func_make_quest "$1" $2 $3;;
+	esac
+}
+
+
+#func_make_quest "Gostaria de realizar um teste??" ifconfig
+
+
+#----------------------------------------------
+# 	       func_show_param                |
+#					      |
+#  Exibe o valor atual dos parâmetros na tela |
+#---------------------------------------------|
+# É invocada nas funções | func_change_param  |
+# --------------------------------------------|
+# Invoca as funções      |	              |
+# ---------------------------------------------
+func_show_param () {
 	echo "função funcionando"
 	
 	# Testa se há banco de dados
@@ -98,16 +143,16 @@ show_param () {
 #---------------------------------------------|
 # É invocada nas funções |                    |
 # --------------------------------------------|
-# Invoca as funções      | show_param         |
+# Invoca as funções      | func_show_param    |
 # ---------------------------------------------
-change_param () {
-
+func_change_param () {
+	clear
 	# Loop controlado por sentinela enquanto a resposta for s (sim)	
 	while test "$RESP" = "s"
 	do
 
 		# Chama função para exibir valor dos parametros atuais
-		show_param
+		func_show_param
 		echo ""
 
 		echo "Digite o número do parametro que deseja alterar"
@@ -134,13 +179,14 @@ change_param () {
 		esac
 		
 		clear
-		show_param		
+		func_show_param		
 		echo ""
 		sleep 1
 		# Pergunta se deseja alterar
 		echo "Deseja alterar mais algum parâmetro? [s/n]"
 		echo ""
 		read RESP
+		clear
 	done
 }
 
@@ -176,15 +222,19 @@ fi
 clear
 
 # Chama função de mostrar os valores atuais dos parametros
-show_param
+func_show_param
 
 echo ""
 sleep 1
 
-echo "Deseja alterar algum dos parametros? [s/n]"
-read RESP
+#echo "Deseja alterar algum dos parametros? [s/n]"
+#read RESP
 	# Caso sim, inicia a função de alterar parâmetros
-	test "$RESP" = "s" && change_param
+#	test "$RESP" = "s" && func_change_param
+
+func_make_quest "Deseja Alterar algum dos parametros? " func_change_param
+
+
 clear 
 echo "Realizando acesso remoto..."
 sleep 2
