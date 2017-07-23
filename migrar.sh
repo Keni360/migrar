@@ -59,6 +59,19 @@ SITE=''
 #						       *
 #*******************************************************
 
+func_set_db () {
+		HASDB="true"
+		echo "Digite o nome do banco:"
+		read DBNAME
+		echo "Digite o nome do usuário do banco:"
+		read DBUSER
+		echo "Digite a senha do banco"
+		read DBPASS
+
+}
+
+
+
 
 #----------------------------------------------
 #  		func_make_quest               |
@@ -139,56 +152,111 @@ func_show_param () {
 
 
 #----------------------------------------------
-#    Altera os valores atuais dos parametros  |
+# 		func_change_param	      |
+#					      |
+#  Altera os valores atuais dos parametros    |
 #---------------------------------------------|
-# É invocada nas funções |                    |
+# É invocada nas funções:| Invoca as funções  |
 # --------------------------------------------|
-# Invoca as funções      | func_show_param    |
+#                        | func_show_param    |
+#                        | func_make_quest    |
 # ---------------------------------------------
+
+
 func_change_param () {
+	local PARAM
 	clear
-	# Loop controlado por sentinela enquanto a resposta for s (sim)	
-	while test "$RESP" = "s"
-	do
+	func_show_param
+	
+	echo "Digite o número do parametro que deseja alterar:"
+	read PARAM
+	
+	# testa se tem banco de dados
+	if [ $HASDB = "true" ]
+		then
+			# Caso tenha banco, fará teste com parametros de banco
+			case $PARAM in
 
-		# Chama função para exibir valor dos parametros atuais
-		func_show_param
-		echo ""
+				1) echo "Insira o servidor de destino:"
+				read SERVER;;
+				2) echo "Insira o diretorio de destino:"
+				read DESTDIR;;
+				3) echo "Insira o site que deseja migrar:"
+				read SITE;;
+				4) echo "Insira o nome do banco:"
+				read DBNAME;;
+				5) echo "Insira o nome do usuário do banco:"
+				read DBUSER;;
+				6) echo "Insira a senha do banco:"
+				read DBPASS;;
+				*) echo "Opção inválida"
+				   func_change_param;;
+			esac
+		else
+			# Caso não tenha banco, fará teste sem os parametrôs do banco
+			case $PARAM in
 
-		echo "Digite o número do parametro que deseja alterar"
-		read PARAM
-		clear
-			
-		# Testa o parâmetro que deseja alterar
-		case $PARAM in
-
-			1) echo "Insira o servidor de destino:"
-			read SERVER;;
-			2) echo "Insira o diretorio de destino:"
-			read DESTDIR;;
-			3) echo "Insira o site que deseja migrar:"
-			read SITE;;
-			4) echo "Insira o nome do banco:"
-			read DBNAME;;
-			5) echo "Insira o nome do usuário do banco:"
-			read DBUSER;;
-			6) echo "Insira a senha do banco:"
-			read DBPASS;;
-			*) echo "Opção invalida"
-			sleep 2;;
-		esac
-		
-		clear
-		func_show_param		
-		echo ""
-		sleep 1
-		# Pergunta se deseja alterar
-		echo "Deseja alterar mais algum parâmetro? [s/n]"
-		echo ""
-		read RESP
-		clear
-	done
+				1) echo "Insira o servidor de destino:"
+				read SERVER;;
+				2) echo "Insira o diretorio de destino:"
+				read DESTDIR;;
+				3) echo "Insira o site que deseja migrar:"
+				read SITE;;
+				*) echo "Opção inválida"
+				   func_change_param;;
+			esac
+	fi
+	clear
+	func_show_param	
+	func_make_quest "Deseja alterar mais algum parametro? " func_change_param
+	
 }
+
+
+#func_change_param () {
+#	clear
+#	local RESP
+	# Loop controlado por sentinela enquanto a resposta for s (sim)	
+#	while test "$RESP" = "s"
+#	do
+#
+#		# Chama função para exibir valor dos parametros atuais
+#		func_show_param
+#		echo ""
+#
+#		echo "Digite o número do parametro que deseja alterar"
+#		read PARAM
+#		clear
+#			
+#		# Testa o parâmetro que deseja alterar
+#		case $PARAM in
+#
+#			1) echo "Insira o servidor de destino:"
+#			read SERVER;;
+#			2) echo "Insira o diretorio de destino:"
+#			read DESTDIR;;
+#			3) echo "Insira o site que deseja migrar:"
+#			read SITE;;
+#			4) echo "Insira o nome do banco:"
+#			read DBNAME;;
+#			5) echo "Insira o nome do usuário do banco:"
+#			read DBUSER;;
+#			6) echo "Insira a senha do banco:"
+#			read DBPASS;;
+#			*) echo "Opção inválida"
+#				func_change_param
+#			sleep 2;;
+#		esac
+#		
+#		clear
+#		func_show_param		
+#		echo ""
+#		sleep 1
+#		# Pergunta se deseja alterar
+#		func_make_quest "Deseja alterar mais algum parâmetro? [s/n]" func_change_param
+#		clear
+#	done
+#}
 
 
 # ========================================================================================================
@@ -200,40 +268,16 @@ func_change_param () {
 echo "Qual o site que deseja migrar?"
 read SITE
 
-echo "Possui banco de dados? [s/n]"
-read RESPDB
-
-
-# Caso possua banco $HASDB recebe true
-
-if test "$RESPDB" != "n" 
-	then
-		HASDB="true"
-		echo "Digite o nome do banco:"
-		read DBNAME
-		echo "Digite o nome do usuário do banco:"
-		read DBUSER
-		echo "Digite a senha do banco"
-		read DBPASS
-	else
-		HASDB="false"
-fi
-
-clear
+func_make_quest "Possui banco de dados?" func_set_db
 
 # Chama função de mostrar os valores atuais dos parametros
+clear
 func_show_param
 
 echo ""
 sleep 1
 
-#echo "Deseja alterar algum dos parametros? [s/n]"
-#read RESP
-	# Caso sim, inicia a função de alterar parâmetros
-#	test "$RESP" = "s" && func_change_param
-
 func_make_quest "Deseja Alterar algum dos parametros? " func_change_param
-
 
 clear 
 echo "Realizando acesso remoto..."
