@@ -43,10 +43,14 @@
 clear
 # Variaveis padrão - Globais
 USER='root'
-SERVER='192.168.25.100'
-DESTDIR='/home/wvirt'
-ORIDIR='/home/wvirt'
+SERVER='192.168.0.100'
+FIREHAWK='192.168.0.101'
+STEPUP='192.168.0.100'
+DESTDIR="/root/wvirt/$SITE"
+ORIDIR="/root/wvirt/$SITE"
 HASDB="false"
+DBORI='192.168.0.101'
+DBDEST='192.168.0.100'
 DBNAME=''
 DBUSER=''
 DBPASS=''
@@ -213,51 +217,6 @@ func_change_param () {
 }
 
 
-#func_change_param () {
-#	clear
-#	local RESP
-	# Loop controlado por sentinela enquanto a resposta for s (sim)	
-#	while test "$RESP" = "s"
-#	do
-#
-#		# Chama função para exibir valor dos parametros atuais
-#		func_show_param
-#		echo ""
-#
-#		echo "Digite o número do parametro que deseja alterar"
-#		read PARAM
-#		clear
-#			
-#		# Testa o parâmetro que deseja alterar
-#		case $PARAM in
-#
-#			1) echo "Insira o servidor de destino:"
-#			read SERVER;;
-#			2) echo "Insira o diretorio de destino:"
-#			read DESTDIR;;
-#			3) echo "Insira o site que deseja migrar:"
-#			read SITE;;
-#			4) echo "Insira o nome do banco:"
-#			read DBNAME;;
-#			5) echo "Insira o nome do usuário do banco:"
-#			read DBUSER;;
-#			6) echo "Insira a senha do banco:"
-#			read DBPASS;;
-#			*) echo "Opção inválida"
-#				func_change_param
-#			sleep 2;;
-#		esac
-#		
-#		clear
-#		func_show_param		
-#		echo ""
-#		sleep 1
-#		# Pergunta se deseja alterar
-#		func_make_quest "Deseja alterar mais algum parâmetro? [s/n]" func_change_param
-#		clear
-#	done
-#}
-
 
 # ========================================================================================================
 # ========================================================================================================
@@ -275,23 +234,88 @@ clear
 func_show_param
 
 echo ""
-sleep 1
 
 func_make_quest "Deseja Alterar algum dos parametros? " func_change_param
 
-clear 
-echo "Realizando acesso remoto..."
-sleep 2
 
-# Realiza o acesso remoto
-ssh root@$SERVER
+
+# -------------------------------------------------------------------
+# 2 - Criar estrutura no servidor de destino do site a ser migrado  |
+#     - ( script de criação : /root/bin/cria_dominio_bd.sh )        |
+# -------------------------------------------------------------------
+
+clear 
+
+echo "Executando script remoto $SERVER:/root/bin/cria_dominio.sh..."
+
+# Realiza remoto na ELITE e executa o script de criação de estrutura
+ssh -o ConnectTimeout=5 -l root $SERVER "/root/bin/cria_estrutura.sh $SITE $HASDB $DBNAME $DBUSER $DBPASS"
 
 clear
 echo "Acesso remoto encerrado..."
-sleep 2
+sleep 1 
+
+#-------------------------------------------------------------------------------
+# 3 - Sincronizar os arquivos no servidor de origem para o servidor de destino |
+#     * Usar rsync -hrazv /home/wvirt/<site>/				       |
+#     	* <site>/public_html/ p/ /home/wvirt/<site>/public_html                |
+#       * <site>/logs/*      p/ /home/wvirt/<site>/var/log    (log sem 's')    |
+#       * <site>/stats/*     p/ /home/wvirt/<site>/var/stats                   |
+#       * <site>/data/*      p/ /home/wvirt/<site>/var/data		       |
+# ------------------------------------------------------------------------------
+
+# Sincronizando os arquivos na estrutura 
+
+rsync -hrazv /root/wvirt/$SITE/public_html $SERVER:/root/wvirt/$SITE/
+rsync -hrazv /root/wvirt/$SITE/logs/*  $SERVER:/root/wvirt/$SITE/var/log/
+rsync -hrazv /root/wvirt/$SITE/stats $SERVER:/root/wvirt/$SITE/var/
+rsync -hrazv /root/wvirt/$SITE/data  $SERVER:/root/wvirt/$SITE/var/
+
+
+# ---------------------------------------------------------------------------------
+# 4 - Mudar as permissões da pasta public_html para o grupo com o nome do dominio |
+#     - ex.: chown -R <site.com.br>:<site.com.br> public_html 		          |
+#										  |
+# --------------------------------------------------------------------------------|
+
+ssh -o ConnectTimeout=5 -l root $SERVER "chown -R $SITE:$SITE /root/wvirt/$SITE/public_html"
+
+
+
+# Acessa o servidor da firehawk e faz dump do banco desejado                      |
+
+echo "Acessando servidor FIREHAWK"
+echo "Realizando dump do banco $DBNAME na FIREHAWK"
+ssh -o ConnectTimeout=5 -l root $DBORI "mysqldump teste_db > /root/banco/$DBNAME.sql &  rsync -hrazv /root/banco/$DBNAME.sql root@192.168.0.101:/root/banco/$DBNAME.sql"
+sleep 1
+
+echo "Enviando $DBNAME.sql para STEPUP..."
+
+
+#############################################################################
+
+# 5 - Na pasta /home/wvirt/<site>/var/log/ 
+#     - Apagar o arquivo acess_log
+#	 * Ex.: rm /home/wvirt/<site>/var/log/access_log
+#     - Criar outro link (ln -s) de access_log com o mês atual 
+#        * Ex.: no mês de julho: ln -s /home/wvirt/<site>/var/log/access.2017.07.log acces_log
+# Restaurando o banco para o mysql no servidor de destino
+
+ssh -l ConnectTimeout=10 -l root $SERVER "rm /root/wvirt/$SITE/var/log/access_log"
+
+ssh -l ConnectTimeout=10 -l root $SERVER "ln -s /root/wvirt/$SITE/var/log/access_log.2017.07.log access_log"
+
+
+
+# 6 - Exportar o Banco de dados
+#     - Importar  do servidor de origem 
+#     - Importar para o servidor de destino
+# 
+
+ssh -o ConnectTimeout=5 -l root $DBDEST "mysql $DBNAME < /root/banco$DBNAME.sql"
+
+
 
 # MSG de encerramento do script
 echo "Encerrando o script..."
-sleep 2
-
-	
+sleep 1
