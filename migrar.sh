@@ -282,14 +282,6 @@ ssh -o ConnectTimeout=5 -l root $SERVER "chown -R $SITE:$SITE /root/wvirt/$SITE/
 
 
 
-# Acessa o servidor da firehawk e faz dump do banco desejado                      |
-
-echo "Acessando servidor FIREHAWK"
-echo "Realizando dump do banco $DBNAME na FIREHAWK"
-ssh -o ConnectTimeout=5 -l root $DBORI "mysqldump teste_db > /root/banco/$DBNAME.sql &  rsync -hrazv /root/banco/$DBNAME.sql root@192.168.0.101:/root/banco/$DBNAME.sql"
-sleep 1
-
-echo "Enviando $DBNAME.sql para STEPUP..."
 
 
 #############################################################################
@@ -312,9 +304,17 @@ ssh -l ConnectTimeout=10 -l root $SERVER "ln -s /root/wvirt/$SITE/var/log/access
 #     - Importar para o servidor de destino
 # 
 
+# Acessa o servidor da firehawk e faz dump do banco desejado                      |
+
+echo "Acessando servidor FIREHAWK"
+echo "Realizando dump do banco $DBNAME na FIREHAWK"
+ssh -o ConnectTimeout=5 -l root $DBORI "mysqldump teste_db > /root/banco/$DBNAME.sql &  rsync -hrazv /root/banco/$DBNAME.sql root@192.168.0.101:/root/banco/$DBNAME.sql"
+sleep 1
+
+echo "Enviando $DBNAME.sql para STEPUP..."
+
+
 ssh -o ConnectTimeout=5 -l root $DBDEST "mysql $DBNAME < /root/banco$DBNAME.sql"
-
-
 
 # MSG de encerramento do script
 echo "Encerrando o script..."
